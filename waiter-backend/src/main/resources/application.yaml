@@ -1,0 +1,48 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: waiter-backend
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    # 在 dev 中配置
+    url:
+    username:
+    password:
+  session:
+    timeout: 86400
+    store-type: none
+  redis:
+    # 在 dev 中配置
+    port:
+    host:
+    database:
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDeleted
+dubbo:
+  application:
+    name: dubbo-waiter-backend
+  protocol:
+    name: dubbo
+    port: 22221
+  registry:
+    id: nacos-registry
+    address: nacos://localhost:8848
+# springdoc-openapi项目配置
+springdoc:
+  group-configs:
+    - group: 'default'
+      packages-to-scan: com.ari.waiter.controller
+waiter:
+  client:
+    # 在 dev 中配置
+    access-key:
+    secret-key:

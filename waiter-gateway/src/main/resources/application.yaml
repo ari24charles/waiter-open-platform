@@ -1,0 +1,33 @@
+server:
+  port: 8280
+
+spring:
+  cloud:
+    gateway:
+      default-filters:
+        - AddResponseHeader=source, ari24charles # 所有响应头都带上 source=ari24charles
+      routes:
+        - id: service_route
+          uri: http://localhost:8180
+          predicates:
+            - Path=/service/** # 所有满足条件的 URI 都转发到 http://localhost:8180
+        - id: backend_route
+          uri: http://locahos:8080
+          predicates:
+            - Path=/api/**
+logging:
+  level:
+    org:
+      springframework:
+        cloud:
+          gateway: trace
+dubbo:
+  application:
+    name: dubbo-waiter-gateway
+    qosPort: 33333
+  protocol:
+    name: dubbo
+    port: 22223
+  registry:
+    id: nacos-registry
+    address: nacos://localhost:8848

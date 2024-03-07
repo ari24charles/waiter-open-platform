@@ -17,7 +17,7 @@ import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfigurat
         DataSourceTransactionManagerAutoConfiguration.class,
         HibernateJpaAutoConfiguration.class
 })
-@EnableDubbo
+// @EnableDubbo
 public class WaiterGatewayApplication {
 
     public static void main(String[] args) {

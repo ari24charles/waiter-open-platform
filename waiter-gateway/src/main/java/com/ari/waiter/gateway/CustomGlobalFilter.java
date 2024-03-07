@@ -1,11 +1,14 @@
 package com.ari.waiter.gateway;
 
+import cn.hutool.core.util.StrUtil;
 import com.ari.waiter.common.model.entity.InterfaceInfo;
 import com.ari.waiter.common.model.entity.User;
 import com.ari.waiter.common.service.InnerInterfaceInfoService;
 import com.ari.waiter.common.service.InnerUserInterfaceInfoService;
 import com.ari.waiter.common.service.InnerUserService;
 import com.ari.waiter.utils.SignUtil;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.reactivestreams.Publisher;
@@ -15,6 +18,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
@@ -29,6 +33,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import static org.springframework.cloud.gateway.support.ServerWebExchangeUtils.ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR;
 
 /**
  * 全局过滤
@@ -50,6 +56,8 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
 
     private static final List<String> IP_WHITE_LIST = Arrays.asList("127.0.0.1");
 
+    final long FIVE_MINUTES = 60 * 5L;
+
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         // 1. 请求日志
@@ -59,16 +67,14 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         log.info("请求唯一标识：" + request.getId());
         log.info("请求路径：" + path);
         log.info("请求方法：" + method);
-        log.info("请求参数：" + request.getQueryParams());
         String sourceAddress = request.getLocalAddress().getHostString();
         log.info("请求来源地址：" + sourceAddress);
         log.info("请求来源地址：" + request.getRemoteAddress());
         ServerHttpResponse response = exchange.getResponse();
         // 2. 访问控制 - 黑白名单
-//        if (!IP_WHITE_LIST.contains(sourceAddress)) {
-//            response.setStatusCode(HttpStatus.FORBIDDEN);
-//            return response.setComplete();
-//        }
+        if (!IP_WHITE_LIST.contains(sourceAddress)) {
+            return handleNoAuth(response);
+        }
         // 3. 用户鉴权（判断 ak、sk 是否合法）
         HttpHeaders headers = request.getHeaders();
         String accessKey = headers.getFirst("accessKey");
@@ -76,31 +82,34 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         String timestamp = headers.getFirst("timestamp");
         String sign = headers.getFirst("sign");
         String body = headers.getFirst("body");
+        /*
         User invokeUser = null;
         try {
             invokeUser = innerUserService.getInvokeUser(accessKey);
         } catch (Exception e) {
-            log.error("获取调用用户时发生错误", e);
+            log.error("获取调用用户时发生错误: ", e);
         }
         if (invokeUser == null) {
             return handleNoAuth(response);
         }
-        if (Long.parseLong(nonce) >= 100000000L) {
+         */
+        if (nonce == null || Long.parseLong(nonce) >= 100000000L) { // 数据库存储随机数
             return handleNoAuth(response);
         }
         // 时间和当前时间不能超过 5 分钟
         long currentTime = System.currentTimeMillis() / 1000;
-        final long FIVE_MINUTES = 60 * 5L;
-        if ((currentTime - Long.parseLong(timestamp)) >= FIVE_MINUTES) {
+        if (timestamp == null || ((currentTime - Long.parseLong(timestamp)) >= FIVE_MINUTES)) { // 防重放
             return handleNoAuth(response);
         }
-        // 实际情况中是从数据库中查出 secretKey
-        String secretKey = invokeUser.getSecretKey();
+        // 从数据库中查出 secretKey
+        // String secretKey = invokeUser.getSecretKey();
+        String secretKey = "ari";
         String serverSign = SignUtil.genSign(body, secretKey);
         if (sign == null || !sign.equals(serverSign)) {
             return handleNoAuth(response); // 签名不一致
         }
         // 4. 请求的模拟接口是否存在，以及请求方法是否匹配
+        /*
         InterfaceInfo interfaceInfo = null;
         try {
             interfaceInfo = innerInterfaceInfoService.getInterfaceInfo(path, method);
@@ -116,8 +125,10 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         if (!innerUserInterfaceInfoService.judgeLeftNum(interfaceInfoId, userId)) {
             return handleNoAuth(response);
         }
+         */
         // 5. 请求转发，调用接口 + 响应日志
-        return handleResponse(exchange, chain, interfaceInfoId, userId);
+        // return handleResponse(exchange, chain, interfaceInfoId, userId);
+        return handleResponse(exchange, chain, 1, 1);
     }
 
     @Override
@@ -127,57 +138,57 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
 
     public Mono<Void> handleResponse(ServerWebExchange exchange, GatewayFilterChain chain, long interfaceInfoId, long userId) {
         try {
-            ServerHttpResponse originalResponse = exchange.getResponse();
-            // 缓存数据的工厂
+            ServerHttpResponse originalResponse = exchange.getResponse(); // 获得原始响应
+            // 缓存数据的工厂，用于创建响应体
             DataBufferFactory bufferFactory = originalResponse.bufferFactory();
             // 拿到响应码
             HttpStatus statusCode = originalResponse.getStatusCode();
             if (statusCode == HttpStatus.OK) {
-                // 装饰，增强能力
                 ServerHttpResponseDecorator decoratedResponse = new ServerHttpResponseDecorator(originalResponse) {
-                    // 等调用完转发的接口后才会执行
                     @Override
                     public Mono<Void> writeWith(Publisher<? extends DataBuffer> body) {
                         log.info("body instanceof Flux: {}", (body instanceof Flux));
                         if (body instanceof Flux) {
-                            Flux<? extends DataBuffer> fluxBody = Flux.from(body);
-                            // 往返回值里写数据
-                            // 拼接字符串
-                            return super.writeWith(
-                                    fluxBody.map(dataBuffer -> {
-                                        // 7. 调用成功，接口调用次数 + 1 invokeCount
-                                        try {
-                                            innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId);
-                                        } catch (Exception e) {
-                                            log.error("调用计数时发生错误", e);
-                                        }
-                                        byte[] content = new byte[dataBuffer.readableByteCount()];
-                                        dataBuffer.read(content);
-                                        DataBufferUtils.release(dataBuffer);//释放掉内存
-                                        // 构建日志
-                                        StringBuilder sb = new StringBuilder(200);
-                                        List<Object> rspArgs = new ArrayList<>();
-                                        rspArgs.add(originalResponse.getStatusCode());
-                                        String data = new String(content, StandardCharsets.UTF_8);
-                                        sb.append(data);
-                                        // 打印日志
-                                        log.info("响应结果：" + data);
-                                        return bufferFactory.wrap(content);
-                                    }));
+                            String originalResponseContentType = exchange.getAttribute(ORIGINAL_RESPONSE_CONTENT_TYPE_ATTR);
+                            if (StrUtil.isNotBlank(originalResponseContentType) && originalResponseContentType.contains(
+                                    "application/json")) { // 处理响应体
+                                Flux<? extends DataBuffer> fluxBody = Flux.from(body);
+                                // 往返回值里写数据
+                                return super.writeWith(
+                                        fluxBody.buffer().map(dataBuffers -> { // 分段传输
+                                            // 7. 调用成功，接口调用次数 + 1
+                                            try {
+                                                // innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId);
+                                            } catch (Exception e) {
+                                                log.error("接口服务调用统计发生错误", e);
+                                            }
+                                            DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
+                                            DataBuffer join = dataBufferFactory.join(dataBuffers);
+                                            byte[] content = new byte[join.readableByteCount()];
+                                            join.read(content);
+                                            DataBufferUtils.release(join);
+                                            String responseData = new String(content, StandardCharsets.UTF_8);
+                                            byte[] updatedContent = responseData.getBytes();
+                                            originalResponse.getHeaders().setContentLength(updatedContent.length);
+                                            // 打印日志
+                                            log.info("响应结果：" + responseData);
+                                            return bufferFactory.wrap(updatedContent);
+                                        }));
+                            }
                         } else {
-                            // 8. 调用失败，返回一个规范的错误码
-                            log.error("<--- {} 响应code异常", getStatusCode());
+                            // 8. 调用失败，返回错误码
+                            log.error("<--- {} 响应码异常", getStatusCode());
                         }
                         return super.writeWith(body);
                     }
                 };
-                // 设置 response 对象为装饰过的
+                // 重建响应
                 return chain.filter(exchange.mutate().response(decoratedResponse).build());
             }
             return chain.filter(exchange); // 降级处理返回数据
         } catch (Exception e) {
-            log.error("网关处理响应异常" + e);
-            return chain.filter(exchange);
+            log.error("调用接口服务时发生异常" + e);
+            return handleInvokeError(exchange.getResponse());
         }
     }
 

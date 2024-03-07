@@ -86,7 +86,7 @@ public class WaiterClient {
     }
 
     /**
-     * 发送 POST 请求到接口
+     * 发送 POST 请求到接口S
      *
      * @param uri           接口 URI /api/user/get
      * @param requestParams 请求体 (序列化后的请求体对象)

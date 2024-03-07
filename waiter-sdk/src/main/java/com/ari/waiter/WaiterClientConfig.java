@@ -18,9 +18,7 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan
 public class WaiterClientConfig {
 
-    private String accessKey;
-
-    private String secretKey;
+    @
 
     @Bean
     public WaiterClient waiterClient() {

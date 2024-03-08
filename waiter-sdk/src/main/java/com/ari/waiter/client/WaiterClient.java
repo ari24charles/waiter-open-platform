@@ -3,8 +3,10 @@ package com.ari.waiter.client;
 import cn.hutool.core.util.RandomUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
-import cn.hutool.json.JSONUtil;
 import com.ari.waiter.utils.SignUtil;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import lombok.AllArgsConstructor;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,6 +16,7 @@ import java.util.Map;
  *
  * @author ari24charles
  */
+@AllArgsConstructor
 public class WaiterClient {
 
     private static final String GATEWAY_ADDR = "http://localhost:8280"; // 网关地址
@@ -22,15 +25,10 @@ public class WaiterClient {
 
     private final String secretKey; // 签名密钥
 
-    public WaiterClient(String accessKey, String secretKey) {
-        this.accessKey = accessKey;
-        this.secretKey = secretKey;
-    }
-
     /**
      * 生成请求头参数
      *
-     * @param body 请求体 (序列化后的请求体对象 / 请求参数)
+     * @param body 序列化后的请求体对象
      * @return 请求头参数
      */
     public Map<String, String> getHeader(String body) {
@@ -46,57 +44,40 @@ public class WaiterClient {
     /**
      * 发送 GET 请求到接口
      *
-     * @param uri        接口 URI /api/user/get
-     * @param requestMap 参数列表 key=value
-     * @return 响应体
+     * @param uri        接口 URI /api/user/get?name=ari&age=22
+     * @return 响应体对象
      */
-    public String get(String uri, Map<String, String> requestMap) {
-        String json = JSONUtil.toJsonStr(requestMap);
-        StringBuilder stringBuilder = concatParams(uri, requestMap);
-        String url = stringBuilder.toString();
-        HttpResponse response = HttpRequest.get(url)
-                .addHeaders(getHeader(json))
+    public Object get(String uri) {
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.serializeNulls(); // 不自动过滤 null
+        Gson gson = gsonBuilder.create();
+        HttpResponse response = HttpRequest.get(GATEWAY_ADDR + uri)
+                .addHeaders(getHeader(uri)) //
                 .execute();
-        return response.body();
+        return gson.fromJson(response.body(), Object.class);
     }
 
     /**
-     * 将参数列表拼接到 GET 请求的 URL
-     *
-     * @param uri        接口 URI /api/user/get
-     * @param requestMap 参数列表 key=value
-     * @return 请求 URL
-     */
-    private static StringBuilder concatParams(String uri, Map<String, String> requestMap) {
-        StringBuilder stringBuilder = new StringBuilder(GATEWAY_ADDR + uri);
-        if (!requestMap.isEmpty()) {
-            stringBuilder.append("?");
-        }
-        int index = 0;
-        for (Map.Entry<String, String> entry : requestMap.entrySet()) {
-            if (index != 0) {
-                stringBuilder.append("&");
-            }
-            stringBuilder.append(entry.getKey());
-            stringBuilder.append("=");
-            stringBuilder.append(entry.getValue());
-            ++index;
-        }
-        return stringBuilder;
-    }
-
-    /**
-     * 发送 POST 请求到接口S
+     * 发送 POST 请求到接口
      *
      * @param uri           接口 URI /api/user/get
-     * @param requestParams 请求体 (序列化后的请求体对象)
-     * @return 响应体
+     * @param requestParams 请求体对象
+     * @return 响应体对象
      */
-    public String post(String uri, String requestParams) {
+    public Object post(String uri, Object requestParams) {
+        String json;
+        GsonBuilder gsonBuilder = new GsonBuilder();
+        gsonBuilder.serializeNulls(); // 不自动过滤 null
+        Gson gson = gsonBuilder.create();
+        if (requestParams == null) {
+            json = "";
+        } else {
+            json = gson.toJson(requestParams);
+        }
         HttpResponse response = HttpRequest.post(GATEWAY_ADDR + uri)
-                .addHeaders(getHeader(requestParams))
-                .body(requestParams)
+                .addHeaders(getHeader(json))
+                .body(json)
                 .execute();
-        return response.body();
+        return gson.fromJson(response.body(), Object.class);
     }
 }

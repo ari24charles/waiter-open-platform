@@ -13,7 +13,7 @@ public class SignUtil {
     /**
      * 生成签名
      *
-     * @param body      请求体 / 参数列表
+     * @param body      序列化后的请求体
      * @param secretKey 签名密钥
      * @return 签名
      */

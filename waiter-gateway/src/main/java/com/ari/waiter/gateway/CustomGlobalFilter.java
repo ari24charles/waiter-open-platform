@@ -7,8 +7,6 @@ import com.ari.waiter.common.service.InnerInterfaceInfoService;
 import com.ari.waiter.common.service.InnerUserInterfaceInfoService;
 import com.ari.waiter.common.service.InnerUserService;
 import com.ari.waiter.utils.SignUtil;
-import com.google.common.base.Throwables;
-import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.dubbo.config.annotation.DubboReference;
 import org.reactivestreams.Publisher;
@@ -30,7 +28,6 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -54,7 +51,7 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
     @DubboReference
     private InnerUserInterfaceInfoService innerUserInterfaceInfoService;
 
-    private static final List<String> IP_WHITE_LIST = Arrays.asList("127.0.0.1");
+    private static final List<String> IP_WHITE_LIST = Arrays.asList("127.0.0.1"); // 白名单列表
 
     final long FIVE_MINUTES = 60 * 5L;
 
@@ -69,7 +66,7 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         log.info("请求方法：" + method);
         String sourceAddress = request.getLocalAddress().getHostString();
         log.info("请求来源地址：" + sourceAddress);
-        log.info("请求来源地址：" + request.getRemoteAddress());
+        log.info("请求来源地址：" + request.getRemoteAddress().getHostString());
         ServerHttpResponse response = exchange.getResponse();
         // 2. 访问控制 - 黑白名单
         if (!IP_WHITE_LIST.contains(sourceAddress)) {
@@ -82,7 +79,6 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         String timestamp = headers.getFirst("timestamp");
         String sign = headers.getFirst("sign");
         String body = headers.getFirst("body");
-        /*
         User invokeUser = null;
         try {
             invokeUser = innerUserService.getInvokeUser(accessKey);
@@ -92,8 +88,7 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         if (invokeUser == null) {
             return handleNoAuth(response);
         }
-         */
-        if (nonce == null || Long.parseLong(nonce) >= 100000000L) { // 数据库存储随机数
+        if (nonce == null || Long.parseLong(nonce) >= 100000000L) {
             return handleNoAuth(response);
         }
         // 时间和当前时间不能超过 5 分钟
@@ -102,14 +97,12 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
             return handleNoAuth(response);
         }
         // 从数据库中查出 secretKey
-        // String secretKey = invokeUser.getSecretKey();
-        String secretKey = "ari";
+        String secretKey = invokeUser.getSecretKey();
         String serverSign = SignUtil.genSign(body, secretKey);
         if (sign == null || !sign.equals(serverSign)) {
             return handleNoAuth(response); // 签名不一致
         }
         // 4. 请求的模拟接口是否存在，以及请求方法是否匹配
-        /*
         InterfaceInfo interfaceInfo = null;
         try {
             interfaceInfo = innerInterfaceInfoService.getInterfaceInfo(path, method);
@@ -125,10 +118,8 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
         if (!innerUserInterfaceInfoService.judgeLeftNum(interfaceInfoId, userId)) {
             return handleNoAuth(response);
         }
-         */
         // 5. 请求转发，调用接口 + 响应日志
-        // return handleResponse(exchange, chain, interfaceInfoId, userId);
-        return handleResponse(exchange, chain, 1, 1);
+        return handleResponse(exchange, chain, interfaceInfoId, userId);
     }
 
     @Override
@@ -158,7 +149,7 @@ public class CustomGlobalFilter implements GlobalFilter, Ordered {
                                         fluxBody.buffer().map(dataBuffers -> { // 分段传输
                                             // 7. 调用成功，接口调用次数 + 1
                                             try {
-                                                // innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId);
+                                                innerUserInterfaceInfoService.invokeCount(interfaceInfoId, userId);
                                             } catch (Exception e) {
                                                 log.error("接口服务调用统计发生错误", e);
                                             }

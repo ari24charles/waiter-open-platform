@@ -1,0 +1,5 @@
+client:
+  access-key: ba349d97149eaf5ba81d24afc9161fa6
+  secret-key: e450cd3a2c9050a659eabd617d042acd
+server:
+  port: 8380

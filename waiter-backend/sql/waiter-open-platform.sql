@@ -73,7 +73,7 @@ VALUES (1, 'ari24charles', '80b8a49d4d1fea8b5eeca77d5bd853de', 'Duck Seer', '100
 
 INSERT INTO `interface_info`(id, name, description, uri, request_params, request_header, response_header, method,
                              user_id)
-VALUES (1, 'NO.1', 'this is NO.1', '/service/no1', 'params', 'request', 'response', 'POST', 1),
+VALUES (1, 'NO.1', 'this is NO.1', '/api/encrypt/md5', '{"id": 1, "username": "ari", "password": "12345678"}', 'request', 'response', 'POST', 1),
        (2, 'N2', 'this is N2', '/service/n2', 'params', 'request', 'response', 'POST', 1),
        (3, 'nn3', 'this is nn3', '/service/nn3', 'params', 'request', 'response', 'GET', 2);
 

@@ -1,26 +1,23 @@
 # Waiter! 开放平台
 
+## 测试方式
+
+1. 打开核心业务后端 waiter-backend
+2. 打开网关 waiter-gateway
+3. 打开提供服务的后端 waiter-service
+4. 运行用户应用的测试类 user-application
+
+用户应用结果:
+
+![user-application](./assets/user-application.png)
+
+网关信息:
+
+![waiter-gateway](./assets/waiter-gateway.png)
+
 ## 项目设计
 
 ![1](./assets/1.png)
-
-- 核心业务后端 waiter-backend
-  - 
-- 公共模块 waiter-common
-  - 实体类，视图和枚举类
-  - 自定义注解
-  - 自定义异常
-  - 通用返回类
-  - 通用请求类
-  - RPC 服务接口
-  - 工具类
-  - 实体字段校验类
-  - 常量
-- 网关 waiter-gateway
-- 服务后端 waiter-service
-- 开发工具包 waiter-sdk
-  - 在配置中设置用户的 ak 和 sk，用于自动装配 WaiterClient
-  - 使用 WaiterClient 快速调用接口服务
 
 ## 开发历程
 
@@ -36,7 +33,7 @@
    - post 方法的第一个参数是被调用接口服务的 URI (如 /api/encrypt/md5)，第二个参数是请求体对象 (可以为空)，方法返回响应体对象
    - getHeader 方法传入一个序列化后的请求体，返回一个包含签名信息的键值对
 
-[3] 开发模拟用户客户端应用 user-application
+[3] 开发用户应用 user-application
 
 1. 在 application.yaml 中配置用户的密钥对，并设置应用端口号为 8380
 2. 在接口实现类中注入 WaiterClient 类的对象，调用 post 方法，传入接口服务的 URI 和请求体对象，获取接口服务的结果
@@ -88,6 +85,8 @@
 
 [6] 将可复用的方法和对象实体抽象为公共模块 waiter-common
 
-## 可扩展点
+## 待优化点
 
 - 接口服务不可用时，触发熔断机制
+- 使用 RPC 时的异常处理机制 - 原因 RPC 接口实现类声明问题
+- 调用管理的统计模块还没有实现

@@ -21,6 +21,13 @@ public class InnerInterfaceInfoServiceImpl implements InnerInterfaceInfoService 
     @Resource
     private InterfaceInfoMapper interfaceInfoMapper;
 
+    /**
+     * 根据 URI 和请求类型查询唯一的接口信息
+     *
+     * @param uri    请求地址
+     * @param method 请求类型
+     * @return 接口信息
+     */
     @Override
     public InterfaceInfo getInterfaceInfo(String uri, String method) {
         InterfaceInfo interfaceInfo = interfaceInfoMapper.selectOne(new LambdaQueryWrapper<InterfaceInfo>()

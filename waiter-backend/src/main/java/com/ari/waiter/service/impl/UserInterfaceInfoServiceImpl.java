@@ -21,9 +21,6 @@ public class UserInterfaceInfoServiceImpl extends ServiceImpl<UserInterfaceInfoM
 
     @Override
     public boolean invokeCount(long interfaceInfoId, long userId) {
-        if (interfaceInfoId <= 0 || userId <= 0) {
-            throw new BusinessException(StatusCode.PARAMS_ERROR);
-        }
         LambdaUpdateWrapper<UserInterfaceInfo> updateWrapper = new LambdaUpdateWrapper<>();
         updateWrapper.eq(UserInterfaceInfo::getInterfaceInfoId, interfaceInfoId);
         updateWrapper.eq(UserInterfaceInfo::getUserId, userId);

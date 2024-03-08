@@ -2,8 +2,6 @@ package com.ari.waiter.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.util.StrUtil;
-import cn.hutool.http.HttpRequest;
-import cn.hutool.http.HttpResponse;
 import com.ari.waiter.client.WaiterClient;
 import com.ari.waiter.common.exception.BusinessException;
 import com.ari.waiter.common.model.enums.InterfaceInfoStatusEnum;
@@ -31,6 +29,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.ari.waiter.common.model.entity.InterfaceInfo;
 import com.ari.waiter.mapper.InterfaceInfoMapper;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
@@ -38,7 +37,6 @@ import javax.servlet.http.HttpServletRequest;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static com.ari.waiter.common.constant.CommonConstant.SORT_ORDER_ASC;
 
@@ -264,14 +262,18 @@ public class InterfaceInfoServiceImpl extends ServiceImpl<InterfaceInfoMapper, I
         InterfaceInfo updateInfo = new InterfaceInfo();
         updateInfo.setId(interfaceId);
         if (interfaceInfo.getStatus().equals(InterfaceInfoStatusEnum.OFFLINE.getValue())) {
+            GsonBuilder gsonBuilder = new GsonBuilder();
+            gsonBuilder.serializeNulls();
+            Gson gson = gsonBuilder.create();
             String method = interfaceInfo.getMethod();
             String requestParams = interfaceInfo.getRequestParams();
+            Object requestParamsObj = gson.fromJson(requestParams, Object.class);
             String uri = interfaceInfo.getUri();
-            String res = null;
+            Object res = null;
             if (method.equalsIgnoreCase("post")) {
-                res = waiterClient.post(uri, requestParams);
+                res = waiterClient.post(uri, requestParamsObj);
             } else if (method.equalsIgnoreCase("get")) {
-                res = waiterClient.get(uri, null);
+                res = waiterClient.get(uri);
             } else {
                 throw new BusinessException(StatusCode.PARAMS_ERROR, "请求类型错误");
             }

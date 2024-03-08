@@ -27,11 +27,17 @@ public class InnerUserInterfaceInfoServiceImpl implements InnerUserInterfaceInfo
 
     @Override
     public boolean invokeCount(Long interfaceInfoId, Long userId) {
+        if (interfaceInfoId == null || userId == null || interfaceInfoId <= 0 || userId <= 0) {
+            return false;
+        }
         return userInterfaceInfoService.invokeCount(interfaceInfoId, userId);
     }
 
     @Override
     public boolean judgeLeftNum(Long interfaceInfoId, Long userId) {
+        if (interfaceInfoId == null || userId == null || interfaceInfoId <= 0 || userId <= 0) {
+            return false;
+        }
         UserInterfaceInfo userInterfaceInfo = userInterfaceInfoMapper.selectOne(new LambdaQueryWrapper<UserInterfaceInfo>()
                 .eq(UserInterfaceInfo::getInterfaceInfoId, interfaceInfoId)
                 .eq(UserInterfaceInfo::getUserId, userId));
@@ -39,7 +45,7 @@ public class InnerUserInterfaceInfoServiceImpl implements InnerUserInterfaceInfo
             throw new BusinessException(StatusCode.PARAMS_ERROR, "用户没有开通这个接口");
         }
         if (userInterfaceInfo.getLeftNum() <= 0) {
-            return false;
+            return false; // 调用次数耗尽
         } else {
             return true;
         }

@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS `interface_info`
     name            VARCHAR(255)               NOT NULL COMMENT '接口名',
     description     VARCHAR(255) DEFAULT NULL  NULL COMMENT '接口描述',
     uri             VARCHAR(1024)              NOT NULL COMMENT '接口地址',
-    request_params  TEXT                       NOT NULL COMMENT '请求参数',
+    request_params  TEXT                       NOT NULL COMMENT '序列化后的请求体',
     request_header  TEXT                       NOT NULL COMMENT '请求头',
     response_header TEXT                       NOT NULL COMMENT '响应头',
     method          VARCHAR(255)               NOT NULL COMMENT '请求类型: POST / GET',
@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS `interface_info`
     create_time     DATETIME     DEFAULT NOW() NOT NULL COMMENT '创建时间',
     update_time     DATETIME     DEFAULT NOW() NOT NULL COMMENT '更新时间' ON UPDATE NOW(),
     is_deleted      TINYINT      DEFAULT 0     NOT NULL COMMENT '逻辑删除: 0 -> 正常, 1 -> 删除',
+    # (method, uri) 是一个候选键
     PRIMARY KEY (id),
     KEY `idx_interface_name` (name)
 ) COMMENT '接口信息表';
